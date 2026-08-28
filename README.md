@@ -9,7 +9,7 @@
 
 | 项 | 选型 |
 |---|---|
-| 框架 | Flutter 3.22.1-ohos（openharmony-sig 官方移植版，统一作为三端主 SDK） |
+| 框架 | Flutter 3.27.5-ohos-1.0.7（CPF-Flutter GitCode 镜像，统一作为三端主 SDK） |
 | 数据库 | drift (SQLite) |
 | 状态管理 | flutter_riverpod |
 | 图表 | fl_chart |
@@ -32,10 +32,8 @@ lib/
 
 ## 开发环境
 
-两套 SDK（项目代码同一份）：
-
-- **鸿蒙版（主 SDK）**：`D:\dev\flutter_ohos`（gitee openharmony-sig/flutter_flutter，分支 3.22.1-ohos-0.1.0）
-- **官方版（备用）**：`D:\dev\flutter`（3.47.2，仅参考/工具用）
+- **主 SDK（鸿蒙版）**：`D:\dev\flutter_ohos327`（GitCode `CPF-Flutter/flutter_flutter` tag `3.27.5-ohos-1.0.7`，Dart 3.6.2）
+- 备用：官方 stable（仅出安卓/iOS 包时可选）
 
 国内镜像（建议写入系统环境变量）：
 
@@ -43,6 +41,19 @@ lib/
 PUB_HOSTED_URL=https://pub.flutter-io.cn
 FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
 ```
+
+### ⚠️ ohos 目录的坑
+
+项目里只要存在 `ohos/` 目录，鸿蒙版 SDK 的**所有**命令（包括 test/analyze）都会检查
+`HOS_SDK_HOME`（指向 DevEco Studio 的 HarmonyOS SDK）。DevEco 未安装期间，
+ohos 脚手架暂存在 `D:\Trade\ohos_scaffold_stash`，DevEco 装好后移回或执行：
+
+```bash
+flutter create --platforms ohos --project-name fupan_shouji --org com.fupan .
+```
+
+重新生成即可（脚手架是纯生成物）。ohos 构建还需要 DevEco Studio 5.0+（API 12）、
+JDK 17，及环境变量 `TOOL_HOME` / `DEVECO_SDK_HOME`（hvigor、ohpm、node 均在其 tools/ 下）。
 
 ## 常用命令
 
@@ -61,14 +72,15 @@ flutter build hap --debug   # 或在 DevEco Studio 中直接运行
 flutter build apk --debug
 ```
 
-## 当前状态（M0）
+## 当前状态（M0 完成）
 
 - [x] 5 Tab 导航骨架（今日/交易/持仓/复盘/统计）
 - [x] 主题：Material 3、深浅色、A股红涨绿跌
-- [x] drift 7 张表（标的最优证券/流水/复盘/价格/快照/标签/设置）
+- [x] drift 7 张表（标的/流水/复盘/价格/快照/标签/设置）+ 代码生成
 - [x] 持仓计算引擎（移动加权平均，手续费入成本）+ 单元测试
-- [ ] flutter analyze / test 全绿（等 SDK 就绪）
-- [ ] 鸿蒙模拟器跑通（等 DevEco Studio + 华为开发者账号）
+- [x] 平台脚手架：android / ios / ohos（ohos 暂存，待 DevEco）
+- [x] `flutter analyze` 零问题、`flutter test` 10/10 通过（鸿蒙版 SDK 上验证）
+- [ ] 鸿蒙模拟器/真机跑通（等 DevEco Studio + JDK17 + 华为开发者账号）
 
 ## 已知风险
 
