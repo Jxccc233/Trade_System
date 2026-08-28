@@ -15,7 +15,10 @@ build/
 # 平台生成物
 ios/Pods/
 ios/.symlinks/
-ohos/
+ohos/oh_modules/
+ohos/build/
+ohos/**/build/
+ohos/.preview/
 *.har
 *.hap
 

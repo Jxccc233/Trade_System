@@ -22,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_open());
 
   /// 测试用：传入内存库
-  AppDatabase.test(QueryExecutor executor) : super(executor);
+  AppDatabase.test(super.executor);
 
   @override
   int get schemaVersion => 1;
