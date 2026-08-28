@@ -45,15 +45,40 @@ FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
 ### ⚠️ ohos 目录的坑
 
 项目里只要存在 `ohos/` 目录，鸿蒙版 SDK 的**所有**命令（包括 test/analyze）都会检查
-`HOS_SDK_HOME`（指向 DevEco Studio 的 HarmonyOS SDK）。DevEco 未安装期间，
-ohos 脚手架暂存在 `D:\Trade\ohos_scaffold_stash`，DevEco 装好后移回或执行：
+`HOS_SDK_HOME`（指向 DevEco Studio 的 HarmonyOS SDK）。环境变量已持久化（setx）：
 
-```bash
-flutter create --platforms ohos --project-name fupan_shouji --org com.fupan .
+```
+TOOL_HOME = D:\DevEco Studio
+DEVECO_SDK_HOME / HOS_SDK_HOME = D:\DevEco Studio\sdk
+NODE_HOME = D:\DevEco Studio\tools\node
+JAVA_HOME = D:\DevEco Studio\jbr        # Java 21，DevEco 自带
+ohpmBin = D:\DevEco Studio\tools\ohpm\bin\ohpm.bat
+PATH 追加：flutter_ohos327\bin、jbr\bin、tools\{ohpm,hvigor,node}\bin、
+          sdk\default\openharmony\toolchains（含 hdc）
 ```
 
-重新生成即可（脚手架是纯生成物）。ohos 构建还需要 DevEco Studio 5.0+（API 12）、
-JDK 17，及环境变量 `TOOL_HOME` / `DEVECO_SDK_HOME`（hvigor、ohpm、node 均在其 tools/ 下）。
+### 出 HAP 包
+
+```bash
+flutter build hap --debug
+```
+
+工具硬性要求签名。首次需在 DevEco Studio：
+打开 `D:\Trade\app\ohos` → File → Project Structure → Signing Configs →
+勾选 Automatically generate signature（需登录华为开发者账号）→ Apply。
+之后命令行构建产出已签名 hap，可用 hdc 安装到真机。
+
+### ⚠️ hvigor ohpm 钩子补丁（重要，DevEco 升级后需重打）
+
+DevEco 5.x 的 hvigor 在**命令行**（非 IDE）构建时自动 ohpm install 存在
+Windows 批处理递归爆栈问题（IDE 内正常）。已补丁
+`D:\DevEco Studio\tools\hvigor\hvigor-ohos-plugin\src\plugin\hooks\ohpm-load-install.js`
+（跳过 CLI 构建时的自动安装；原文件备份 .bak，补丁副本在 `scripts/patches/`）。
+若 hap 构建再次报 `ohpm install failed`，用补丁副本覆盖即可。
+若 ohos 依赖变化，手动在 `ohos/` 下执行 `ohpm install --all`。
+
+另：脚手架生成的 build-profile.json5 中 `targetSdkVersion: "1"` 非法（新 hvigor 校验），
+已改为 `"5.0.0(12)"`。本机 SDK 为 HarmonyOS 6.1.1（API 24）。
 
 ## 常用命令
 
@@ -72,15 +97,22 @@ flutter build hap --debug   # 或在 DevEco Studio 中直接运行
 flutter build apk --debug
 ```
 
-## 当前状态（M0 完成）
+## 当前状态（M0 + M0.5 完成）
 
 - [x] 5 Tab 导航骨架（今日/交易/持仓/复盘/统计）
 - [x] 主题：Material 3、深浅色、A股红涨绿跌
 - [x] drift 7 张表（标的/流水/复盘/价格/快照/标签/设置）+ 代码生成
 - [x] 持仓计算引擎（移动加权平均，手续费入成本）+ 单元测试
-- [x] 平台脚手架：android / ios / ohos（ohos 暂存，待 DevEco）
 - [x] `flutter analyze` 零问题、`flutter test` 10/10 通过（鸿蒙版 SDK 上验证）
-- [ ] 鸿蒙模拟器/真机跑通（等 DevEco Studio + JDK17 + 华为开发者账号）
+- [x] 鸿蒙工具链打通：SDK 识别（API 24）、`flutter build hap` 全流水线出包
+      （92MB debug 未签名 hap），hvigor ohpm 钩子已修补
+- [ ] 签名配置（用户在 DevEco 登录华为账号一键生成）→ 已签名 hap → Mate X7 真机
+- [ ] 鸿蒙模拟器/真机运行验证
+
+## 目标设备
+
+- 华为 Mate X7（折叠屏，HarmonyOS NEXT）：页面自 M1 起响应式（折叠窄屏单栏 / 展开宽屏双栏），折叠屏专项优化 M3
+- 华为 Mate 80（直板机）需同样可用
 
 ## 已知风险
 

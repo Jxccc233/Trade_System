@@ -8,7 +8,7 @@
         "signingConfig": "default",
         "compatibleSdkVersion": "5.0.0(12)",
         "runtimeOS": "HarmonyOS",
-        "targetSdkVersion": "1"
+        "targetSdkVersion": "5.0.0(12)"
       }
     ],
     "buildModeSet": [
