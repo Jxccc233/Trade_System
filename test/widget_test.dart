@@ -1,10 +1,23 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fupan_shouji/app.dart';
+import 'package:fupan_shouji/core/di/providers.dart';
 
 void main() {
   testWidgets('底部五个 Tab 均渲染且可切换', (tester) async {
-    await tester.pumpWidget(const FupanApp());
+    await tester.pumpWidget(
+      ProviderScope(
+        // 组件测试不碰真实数据库：数据源给空数据
+        overrides: [
+          tradesProvider.overrideWith((ref) => Stream.value(const [])),
+          instrumentsProvider.overrideWith((ref) => Stream.value(const [])),
+          latestPricesProvider
+              .overrideWith((ref) => Stream.value(const {})),
+        ],
+        child: const FupanApp(),
+      ),
+    );
 
     // IndexedStack 会同时挂载五个页面，导航栏标签应全部存在
     expect(find.text('今日'), findsWidgets);

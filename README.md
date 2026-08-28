@@ -97,17 +97,18 @@ flutter build hap --debug   # 或在 DevEco Studio 中直接运行
 flutter build apk --debug
 ```
 
-## 当前状态（M0 + M0.5 完成）
+## 当前状态（M0 + M0.5 + M1 完成）
 
 - [x] 5 Tab 导航骨架（今日/交易/持仓/复盘/统计）
 - [x] 主题：Material 3、深浅色、A股红涨绿跌
-- [x] drift 7 张表（标的/流水/复盘/价格/快照/标签/设置）+ 代码生成
-- [x] 持仓计算引擎（移动加权平均，手续费入成本）+ 单元测试
-- [x] `flutter analyze` 零问题、`flutter test` 10/10 通过（鸿蒙版 SDK 上验证）
-- [x] 鸿蒙工具链打通：SDK 识别（API 24）、`flutter build hap` 全流水线出包
-      （92MB debug 未签名 hap），hvigor ohpm 钩子已修补
+- [x] drift 7 张表 + 代码生成；`flutter analyze` 零问题、`flutter test` 18/18
+- [x] 鸿蒙工具链打通：`flutter build hap` 全流水线出包，hvigor ohpm 钩子已修补
+- [x] **M1 记账**：记一笔表单（代码补全/市场推断/买卖校验/情绪标签/理由）
+- [x] **M1 流水**：按日分组、长按删除、今日页汇总（当日已实现盈亏/市值/浮动盈亏）
+- [x] **M1 持仓**：自动计算摊薄成本与浮动盈亏（手动填价）、清仓自动归档已了结轮次
+- [x] 响应式布局（窄屏单栏 / 宽屏双栏或限宽居中），Mate X7 折叠屏与 Mate 80 兼容
 - [ ] 签名配置（用户在 DevEco 登录华为账号一键生成）→ 已签名 hap → Mate X7 真机
-- [ ] 鸿蒙模拟器/真机运行验证
+- [ ] M2：复盘日历/表单、每日快照、核心统计
 
 ## 目标设备
 
