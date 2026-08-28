@@ -1,0 +1,23 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.lock
+!pubspec.lock
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 平台生成物
+ios/Pods/
+ios/.symlinks/
+ohos/
+*.har
+*.hap
+
+# 本地环境
+.env
