@@ -24,3 +24,5 @@ ohos/.preview/
 
 # 本地环境
 .env
+*.log
+flutter_*.log
