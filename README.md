@@ -71,11 +71,21 @@ flutter build hap --debug
 ### ⚠️ hvigor ohpm 钩子补丁（重要，DevEco 升级后需重打）
 
 DevEco 5.x 的 hvigor 在**命令行**（非 IDE）构建时自动 ohpm install 存在
-Windows 批处理递归爆栈问题（IDE 内正常）。已补丁
-`D:\DevEco Studio\tools\hvigor\hvigor-ohos-plugin\src\plugin\hooks\ohpm-load-install.js`
-（跳过 CLI 构建时的自动安装；原文件备份 .bak，补丁副本在 `scripts/patches/`）。
-若 hap 构建再次报 `ohpm install failed`，用补丁副本覆盖即可。
-若 ohos 依赖变化，手动在 `ohos/` 下执行 `ohpm install --all`。
+Windows 批处理递归爆栈问题（IDE 内正常，命令行必现）。两个补丁已应用：
+
+1. `D:\DevEco Studio\tools\hvigor\hvigor-ohos-plugin\src\plugin\hooks\ohpm-load-install.js`
+   ——跳过 CLI 构建时的自动 ohpm install（副本：`scripts/patches/ohpm-load-install-patched.js`）
+2. `D:\DevEco Studio\tools\hvigor\bin\hvigorw.js`——不覆盖已设置的 `ohpmBin`
+   环境变量（副本：`scripts/patches/hvigorw-patched.js`）
+
+**ohos 依赖（oh-package.json5 / flutter SDK 版本）变化后**，需手动在 `ohos/` 下执行：
+
+```bash
+# 先跑一次任意构建让 hvigor 生成依赖映射，再：
+ohpm i --all --target_path .hvigor/dependencyMap
+```
+
+若 hap 构建再次报 `ohpm install failed`，用补丁副本覆盖对应文件即可。
 
 另：脚手架生成的 build-profile.json5 中 `targetSdkVersion: "1"` 非法（新 hvigor 校验），
 已改为 `"5.0.0(12)"`。本机 SDK 为 HarmonyOS 6.1.1（API 24）。
