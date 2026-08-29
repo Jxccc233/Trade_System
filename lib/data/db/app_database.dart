@@ -49,6 +49,9 @@ class AppDatabase extends _$AppDatabase {
         _initSqliteForOhos();
         final dir = await getApplicationDocumentsDirectory();
         final file = File(p.join(dir.path, 'fupan.sqlite'));
-        return NativeDatabase.createInBackground(file);
+        // 注：不用 createInBackground——后台 isolate 无法调用平台通道
+        // （path_provider），在 ohos 上会 MissingPluginException；
+        // 本应用数据量小，主 isolate 连接足够。
+        return NativeDatabase(file);
       });
 }

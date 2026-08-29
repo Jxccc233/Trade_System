@@ -16,12 +16,15 @@ class PositionsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bookAsync = ref.watch(positionBookProvider);
     final instruments = ref.watch(instrumentByIdProvider);
+    final tradesError = ref.watch(tradesProvider).hasError;
 
     return Scaffold(
       appBar: AppBar(title: const Text('持仓')),
-      body: bookAsync == null
-          ? const Center(child: CircularProgressIndicator())
-          : Builder(builder: (context) {
+      body: tradesError
+          ? _errorView(context)
+          : bookAsync == null
+              ? const Center(child: CircularProgressIndicator())
+              : Builder(builder: (context) {
               final book = bookAsync;
               if (book.holdings.isEmpty && book.closedRounds.isEmpty) {
                 return _empty(context);
@@ -49,6 +52,20 @@ class PositionsPage extends ConsumerWidget {
   String _nameOf(Map<int, dynamic> instruments, int id) {
     final i = instruments[id];
     return i == null ? '$id' : '${i.name}（${i.code}）';
+  }
+
+  Widget _errorView(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline,
+              size: 48, color: Theme.of(context).colorScheme.error),
+          const SizedBox(height: 12),
+          const Text('数据读取失败，请重启应用重试'),
+        ],
+      ),
+    );
   }
 
   Widget _empty(BuildContext context) {

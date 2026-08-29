@@ -476,6 +476,15 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "2.2.1"
+  path_provider_ohos:
+    dependency: "direct overridden"
+    description:
+      path: "packages/path_provider/path_provider_ohos"
+      ref: "br_path_provider-v2.1.4_ohos"
+      resolved-ref: d8bf2cf9d726cce4d308521f4fb500d832523002
+      url: "https://gitee.com/openharmony-sig/flutter_packages.git"
+    source: git
+    version: "2.2.9"
   path_provider_platform_interface:
     dependency: transitive
     description:

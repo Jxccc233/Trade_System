@@ -27,11 +27,17 @@ dev_dependencies:
   drift_dev: ^2.20.0
 
 # 鸿蒙适配：path_provider 使用 OpenHarmony-SIG 官方适配版（含 ohos 实现）
+# 主包 + ohos 端实现包都要引入，flutter 工具才能注册鸿蒙插件
 dependency_overrides:
   path_provider:
     git:
       url: "https://gitee.com/openharmony-sig/flutter_packages.git"
       path: "packages/path_provider/path_provider"
+      ref: br_path_provider-v2.1.4_ohos
+  path_provider_ohos:
+    git:
+      url: "https://gitee.com/openharmony-sig/flutter_packages.git"
+      path: "packages/path_provider/path_provider_ohos"
       ref: br_path_provider-v2.1.4_ohos
 
 flutter:
