@@ -127,10 +127,14 @@ flutter build apk --debug
 
 ## 已知风险
 
-- ~~sqlite3_flutter_libs 无鸿蒙适配~~ → **已解决**（2026-08-29）：drift 通过 `open.overrideForAll`
-  加载 OpenHarmony 系统自带 `libsqlite3.so`（NDK 公共库）；path_provider 用
-  OpenHarmony-SIG 适配版（dependency_overrides → gitee flutter_packages，
-  分支 br_path_provider-v2.1.4_ohos）。模拟器实测数据库正常。
+- ~~鸿蒙数据库适配~~ → **已解决**（2026-08-29，模拟器实测全链路）：
+  - path_provider：主包 + `path_provider_ohos` 都要用 SIG 适配版（只覆盖主包时 flutter 工具不注册鸿蒙插件）
+  - SQLite：`sqlite3_flutter_libs` 无 ohos 适配，改为**自编译 sqlite3.so 入包**
+    （`scripts/build_sqlite_so.sh` 用 DevEco NDK 编译 amalgamation，产物在
+    `ohos/entry/libs/{x86_64,arm64-v8a}/`——注意 ABI 目录用安卓风格命名）
+  - drift 用主 isolate 连接（`createInBackground` 的后台 isolate 无法调平台通道）
+  - **pub 缓存必须在 D 盘**（`PUB_CACHE=D:\Pub` 已持久化）：hvigor 要求插件工程与工程同盘
+  - debug 版首次启动空库时自动插入演示数据（`lib/data/db/seed.dart`）
 - 切换目标架构（模拟器 x64 ↔ 真机 arm64）后需先跑 `bash scripts/fix_ohos_deps.sh`
   再构建，否则 native 库架构不匹配会闪退。
 - iOS 打包需要 macOS（云 Mac / CI），M3 阶段处理。
