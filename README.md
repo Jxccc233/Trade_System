@@ -127,6 +127,10 @@ flutter build apk --debug
 
 ## 已知风险
 
-- `sqlite3_flutter_libs` 在鸿蒙端可能需要社区 ohos 适配版（等工具链就绪后验证；
-  必要时用 dependency_overrides 指到 gitee 适配仓库，或数据层换成 sqflite ohos 版）。
+- ~~sqlite3_flutter_libs 无鸿蒙适配~~ → **已解决**（2026-08-29）：drift 通过 `open.overrideForAll`
+  加载 OpenHarmony 系统自带 `libsqlite3.so`（NDK 公共库）；path_provider 用
+  OpenHarmony-SIG 适配版（dependency_overrides → gitee flutter_packages，
+  分支 br_path_provider-v2.1.4_ohos）。模拟器实测数据库正常。
+- 切换目标架构（模拟器 x64 ↔ 真机 arm64）后需先跑 `bash scripts/fix_ohos_deps.sh`
+  再构建，否则 native 库架构不匹配会闪退。
 - iOS 打包需要 macOS（云 Mac / CI），M3 阶段处理。
