@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
-import '../core/utils/breakpoints.dart';
 import '../core/utils/dates.dart';
 import '../core/utils/format.dart';
+import '../core/widgets/adaptive_card_grid.dart';
 import '../domain/position_book.dart';
 
 /// 持仓：当前持仓（自动计算）+ 已了结交易档案
@@ -90,39 +90,6 @@ class PositionsPage extends ConsumerWidget {
         child: Text(text, style: Theme.of(context).textTheme.titleSmall),
       );
 }
-
-/// 窄屏单列、宽屏（折叠展开/平板）双列
-class AdaptiveCardGrid extends StatelessWidget {
-  const AdaptiveCardGrid({super.key, required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final wide = isWide(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        if (!wide)
-          ...children
-        else
-          for (var i = 0; i < children.length; i += 2)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: children[i]),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: i + 1 < children.length
-                        ? children[i + 1]
-                        : const SizedBox.shrink()),
-              ],
-            ),
-      ],
-    );
-  }
-}
-
 class _HoldingCard extends ConsumerWidget {
   const _HoldingCard({required this.holding, required this.name});
 

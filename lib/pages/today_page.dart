@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
-import '../core/utils/breakpoints.dart';
+import '../core/widgets/adaptive_card_grid.dart';
 import '../core/utils/format.dart';
 import '../data/db/tables.dart';
 import '../data/repositories.dart';
@@ -53,10 +53,8 @@ class TodayPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('记一笔'),
       ),
-      body: CenteredConstrainedBox(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
+      body: AdaptiveCardGrid(
+        children: [
             Card(
               margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
@@ -138,7 +136,6 @@ class TodayPage extends ConsumerWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
