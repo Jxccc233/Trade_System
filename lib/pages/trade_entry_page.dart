@@ -157,19 +157,25 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(
-                      value: TradeSide.buy,
-                      label: Text('买入'),
-                      icon: Icon(Icons.north_east)),
-                  ButtonSegment(
-                      value: TradeSide.sell,
-                      label: Text('卖出'),
-                      icon: Icon(Icons.south_east)),
-                ],
-                selected: {_side},
-                onSelectionChanged: (s) => setState(() => _side = s.first),
+              Text('方向',
+                  style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 48,
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                        value: TradeSide.buy,
+                        label: Text('买入'),
+                        icon: Icon(Icons.north_east)),
+                    ButtonSegment(
+                        value: TradeSide.sell,
+                        label: Text('卖出'),
+                        icon: Icon(Icons.south_east)),
+                  ],
+                  selected: {_side},
+                  onSelectionChanged: (s) => setState(() => _side = s.first),
+                ),
               ),
               const SizedBox(height: 16),
 
