@@ -29,6 +29,7 @@ void main() {
     // 切到统计页
     await tester.tap(find.text('统计').last);
     await tester.pumpAndSettle();
-    expect(find.text('核心指标'), findsOneWidget);
+    // 统计页已是真实数据视图
+    expect(find.text('累计已实现盈亏'), findsOneWidget);
   });
 }
