@@ -1,9 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/backup.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories.dart';
 import '../../data/review_repository.dart';
 import '../../domain/position_book.dart';
+
+final backupServiceProvider =
+    Provider<BackupService>((ref) => BackupService(ref.watch(databaseProvider)));
 
 final reviewRepositoryProvider = Provider<ReviewRepository>(
     (ref) => ReviewRepository(ref.watch(databaseProvider)));

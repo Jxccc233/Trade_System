@@ -9,6 +9,7 @@ import '../data/db/tables.dart';
 import '../data/repositories.dart';
 import '../domain/position_book.dart' show dateKey, Holding;
 import '../core/utils/dates.dart';
+import 'settings_page.dart';
 import 'trade_entry_page.dart';
 
 /// 今日仪表盘：当日已实现盈亏、持仓概览、今日交易
@@ -38,7 +39,8 @@ class TodayPage extends ConsumerWidget {
         title: const Text('今日'),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SettingsPage())),
             icon: const Icon(Icons.settings_outlined),
             tooltip: '设置',
           ),
