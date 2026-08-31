@@ -5,10 +5,13 @@ import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/breakpoints.dart';
 import '../core/utils/dates.dart';
+import '../core/utils/format.dart';
 import '../core/widgets/image_viewer.dart';
 import '../data/db/app_database.dart';
 import '../data/db/tables.dart';
 import '../data/image_store.dart';
+import '../data/repositories.dart';
+import '../domain/fee.dart';
 
 /// 预置情绪标签（M2 支持自定义）
 const kEmotions = ['计划内', '临时起意', '冲动', 'FOMO', '止损', '止盈'];
@@ -23,9 +26,13 @@ String guessMarket(String code) {
   return Market.sh;
 }
 
-/// 记一笔：30 秒完成一笔买卖记录
+/// 记一笔：30 秒完成一笔买卖记录。
+/// 传 [editing] 为编辑模式；[editing] + [copy] 为复制模式（预填但另存一笔）。
 class TradeEntryPage extends ConsumerStatefulWidget {
-  const TradeEntryPage({super.key});
+  const TradeEntryPage({super.key, this.editing, this.copy = false});
+
+  final TradeWithInstrument? editing;
+  final bool copy;
 
   @override
   ConsumerState<TradeEntryPage> createState() => _TradeEntryPageState();
@@ -47,6 +54,131 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
   String? _emotion;
   bool _saving = false;
   final List<String> _images = [];
+
+  bool get _isEditing => widget.editing != null && !widget.copy;
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.editing;
+    if (e != null) {
+      final t = e.trade;
+      _code = e.instrument.code;
+      _nameController.text = e.instrument.name;
+      _market = e.instrument.market;
+      _side = t.side;
+      _priceController.text = t.price.toString();
+      _qtyController.text =
+          t.quantity.toStringAsFixed(t.quantity % 1 == 0 ? 0 : 3);
+      _feeController.text = t.fee.toStringAsFixed(2);
+      _reasonController.text = t.reason ?? '';
+      _emotion = t.emotion;
+      _images.addAll(decodeImages(t.images));
+      if (!widget.copy) _tradedAt = t.tradedAt;
+    }
+    _priceController.addListener(_autoFee);
+    _qtyController.addListener(_autoFee);
+    _loadRates();
+  }
+
+  FeeRates _rates = FeeRates.defaults;
+  bool _feeTouched = false;
+
+  Future<void> _loadRates() async {
+    final repo = ref.read(tradeRepositoryProvider);
+    final rates = FeeRates(
+      commissionRate: await repo.getSettingDouble(
+          SettingKeys.commissionRate, FeeRates.defaults.commissionRate),
+      commissionMin: await repo.getSettingDouble(
+          SettingKeys.commissionMin, FeeRates.defaults.commissionMin),
+      stampRate: await repo.getSettingDouble(
+          SettingKeys.stampRate, FeeRates.defaults.stampRate),
+      transferRate: await repo.getSettingDouble(
+          SettingKeys.transferRate, FeeRates.defaults.transferRate),
+    );
+    if (mounted) {
+      setState(() => _rates = rates);
+      _autoFee();
+    }
+  }
+
+  /// 价格/数量变化时自动估费；手动改过费用则不动（点"估"可重估）
+  void _autoFee() {
+    if (_feeTouched) return;
+    final price = double.tryParse(_priceController.text.trim()) ?? 0;
+    final qty = double.tryParse(_qtyController.text.trim()) ?? 0;
+    final fee = _rates.estimate(_side, price, qty);
+    _feeController.text = fee > 0 ? fee.toStringAsFixed(2) : '';
+  }
+
+  void _stepQty(double delta) {
+    final cur = double.tryParse(_qtyController.text.trim()) ?? 0;
+    final next = cur + delta;
+    _qtyController.text =
+        next <= 0 ? '' : next.toStringAsFixed(next % 1 == 0 ? 0 : 3);
+  }
+
+  /// 卖出参考：持仓数量、摊薄成本、边填边算的预计盈亏
+  Widget _sellReferenceCard(ThemeData theme) {
+    final code = _code.trim();
+    if (code.isEmpty) return const SizedBox.shrink();
+    final ins = ref.read(instrumentsProvider).valueOrNull;
+    final match = ins?.where((i) => i.code == code && i.market == _market);
+    if (match == null || match.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text('无 $code 持仓（A股不支持做空）',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.error)),
+      );
+    }
+    final holding =
+        ref.read(positionBookProvider)?.holdings[match.first.id];
+    if (holding == null || holding.quantity <= 0) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text('无 $code 持仓（A股不支持做空）',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.error)),
+      );
+    }
+    final price = double.tryParse(_priceController.text.trim());
+    final qty = double.tryParse(_qtyController.text.trim());
+    final fee = double.tryParse(_feeController.text.trim()) ?? 0;
+    final pnl = (price != null && qty != null)
+        ? qty * (price - holding.avgCost) - fee
+        : null;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('持仓 ${holding.quantity.toStringAsFixed(holding.quantity % 1 == 0 ? 0 : 2)} 股 · 成本 ${holding.avgCost.toStringAsFixed(3)}',
+                      style: theme.textTheme.bodySmall),
+                  if (pnl != null)
+                    Text(
+                      '预计盈亏 ${signedMoney(pnl)}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                          color: AppColors.ofPnl(pnl)),
+                    )
+                  else
+                    Text('填价格后显示预计盈亏',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -87,8 +219,9 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
     final qty = double.parse(_qtyController.text.trim());
     final repo = ref.read(tradeRepositoryProvider);
 
-    // 卖出校验：A股只做多，卖出数量不能超过当前持仓
-    if (_side == TradeSide.sell) {
+    // 卖出校验：A股只做多，卖出数量不能超过当前持仓（编辑模式跳过——
+    // 改的就是这笔自身，严格校验会误伤；越界由账本引擎兜底）
+    if (!_isEditing && _side == TradeSide.sell) {
       final book = ref.read(positionBookProvider);
       final instrument = await repo.findInstrument(code, market);
       if (!mounted) return;
@@ -111,7 +244,7 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
         name: _nameController.text.trim(),
         market: market,
       );
-      await repo.addTrade(
+      final fields = (
         instrumentId: instrument.id,
         tradedAt: _tradedAt,
         side: _side,
@@ -124,6 +257,31 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
         emotion: _emotion,
         images: _images,
       );
+      if (_isEditing) {
+        await repo.updateTrade(widget.editing!.trade.id,
+          instrumentId: fields.instrumentId,
+          tradedAt: fields.tradedAt,
+          side: fields.side,
+          price: fields.price,
+          quantity: fields.quantity,
+          fee: fields.fee,
+          reason: fields.reason,
+          emotion: fields.emotion,
+          images: fields.images,
+        );
+      } else {
+        await repo.addTrade(
+          instrumentId: fields.instrumentId,
+          tradedAt: fields.tradedAt,
+          side: fields.side,
+          price: fields.price,
+          quantity: fields.quantity,
+          fee: fields.fee,
+          reason: fields.reason,
+          emotion: fields.emotion,
+          images: fields.images,
+        );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -136,7 +294,10 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
         ref.watch(instrumentsProvider).valueOrNull ?? const <Instrument>[];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('记一笔')),
+      appBar: AppBar(
+          title: Text(_isEditing
+              ? '编辑交易'
+              : (widget.copy ? '复制记一笔' : '记一笔'))),
       bottomNavigationBar: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -149,7 +310,11 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
                 foregroundColor: Colors.white,
               ),
               child: Text(
-                _saving ? '保存中…' : (_side == TradeSide.buy ? '记买入' : '记卖出'),
+                _saving
+                    ? '保存中…'
+                    : (_isEditing
+                        ? '保存修改'
+                        : (_side == TradeSide.buy ? '记买入' : '记卖出')),
               ),
             ),
           ),
@@ -178,10 +343,43 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
                         icon: Icon(Icons.south_east)),
                   ],
                   selected: {_side},
-                  onSelectionChanged: (s) => setState(() => _side = s.first),
+                  onSelectionChanged: (s) {
+                    setState(() => _side = s.first);
+                    _autoFee();
+                  },
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // 常用标的一键选择（收藏 + 最近使用置顶）
+              if (instruments.isNotEmpty) ...[
+                SizedBox(
+                  height: 36,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: instruments.take(10).length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, i) {
+                      final ins = instruments[i];
+                      final selected =
+                          ins.code == _code.trim() && ins.market == _market;
+                      return ChoiceChip(
+                        label: Text(
+                          ins.isFavorite ? '★ ${ins.name}' : ins.name,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        selected: selected,
+                        onSelected: (_) => setState(() {
+                          _code = ins.code;
+                          _nameController.text = ins.name;
+                          _market = ins.market;
+                        }),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // 标的：代码自动补全 + 名称
               Row(
@@ -267,6 +465,10 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
               ),
               const SizedBox(height: 12),
 
+              // 卖出参考：显示该标的当前持仓与摊薄成本，边填边算预计盈亏
+              if (_side == TradeSide.sell)
+                _sellReferenceCard(Theme.of(context)),
+
               Row(
                 children: [
                   Expanded(
@@ -302,14 +504,45 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
                   ),
                 ],
               ),
+              // 数量快捷步进（Row 之外）
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final d in const [100.0, 500.0, 1000.0])
+                    OutlinedButton(
+                      onPressed: () => _stepQty(d),
+                      style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact),
+                      child: Text('+${d.toInt()}'),
+                    ),
+                  OutlinedButton(
+                    onPressed: () => _stepQty(-100),
+                    style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact),
+                    child: const Text('-100'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
 
               TextFormField(
                 controller: _feeController,
-                decoration: const InputDecoration(
-                  labelText: '手续费（可选）',
+                decoration: InputDecoration(
+                  labelText: '手续费（自动估算，可改）',
                   suffixText: '元',
+                  suffixIcon: Tooltip(
+                    message: '按设置费率重估',
+                    child: IconButton(
+                      icon: const Icon(Icons.calculate_outlined, size: 20),
+                      onPressed: () {
+                        setState(() => _feeTouched = false);
+                        _autoFee();
+                      },
+                    ),
+                  ),
                 ),
+                onChanged: (_) => _feeTouched = true,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
               ),

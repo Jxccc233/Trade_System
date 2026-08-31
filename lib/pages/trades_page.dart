@@ -127,7 +127,7 @@ class _TradeTile extends ConsumerWidget {
                   context,
                   [for (final r in images) ImagePathResolver.resolve(r)],
                 ),
-        onLongPress: () => _confirmDelete(context, ref, t.id, i.name),
+        onLongPress: () => _tradeActions(context, ref, item),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -209,6 +209,55 @@ class _TradeTile extends ConsumerWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// 长按操作菜单：编辑 / 复制 / 删除
+  void _tradeActions(
+      BuildContext context, WidgetRef ref, TradeWithInstrument item) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('编辑这笔'),
+              subtitle: const Text('改完保存，持仓与统计即时重算'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => TradeEntryPage(editing: item),
+                ));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_outlined),
+              title: const Text('复制记一笔'),
+              subtitle: const Text('预填这笔的内容，另存新交易'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => TradeEntryPage(editing: item, copy: true),
+                ));
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline,
+                  color: Theme.of(ctx).colorScheme.error),
+              title: Text('删除',
+                  style:
+                      TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmDelete(context, ref, item.trade.id,
+                    item.instrument.name);
+              },
+            ),
+          ],
         ),
       ),
     );

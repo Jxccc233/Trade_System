@@ -47,23 +47,28 @@ final latestPricesProvider = StreamProvider<Map<int, double>>(
 const _computer = PositionBookComputer();
 
 /// 持仓账本：当前持仓 / 已了结 / 逐日盈亏（由流水+价格即时推导）
+/// 流水构成非法状态（如编辑导致卖超持仓）时返回 null，由页面兜底展示。
 final positionBookProvider = Provider<PositionBook?>((ref) {
   final trades = ref.watch(tradesProvider).valueOrNull;
   if (trades == null) return null;
   final prices = ref.watch(latestPricesProvider).valueOrNull ?? const {};
-  return _computer.compute(
-    trades: trades
-        .map((t) => TradeRecord(
-              instrumentId: t.instrument.id,
-              tradedAt: t.trade.tradedAt,
-              side: t.trade.side,
-              price: t.trade.price,
-              quantity: t.trade.quantity,
-              fee: t.trade.fee,
-            ))
-        .toList(),
-    lastPrices: prices,
-  );
+  try {
+    return _computer.compute(
+      trades: trades
+          .map((t) => TradeRecord(
+                instrumentId: t.instrument.id,
+                tradedAt: t.trade.tradedAt,
+                side: t.trade.side,
+                price: t.trade.price,
+                quantity: t.trade.quantity,
+                fee: t.trade.fee,
+              ))
+          .toList(),
+      lastPrices: prices,
+    );
+  } catch (_) {
+    return null;
+  }
 });
 
 /// 标的速查表

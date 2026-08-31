@@ -95,6 +95,35 @@ class TradeRepository {
         ));
   }
 
+  /// 覆盖更新一笔交易（编辑）
+  Future<void> updateTrade(
+    int id, {
+    required int instrumentId,
+    required DateTime tradedAt,
+    required String side,
+    required double price,
+    required double quantity,
+    double fee = 0,
+    String? reason,
+    String? emotion,
+    List<String> images = const [],
+  }) {
+    return (db.update(db.trades)..where((t) => t.id.equals(id))).write(
+          TradesCompanion.insert(
+            instrumentId: instrumentId,
+            tradedAt: tradedAt,
+            side: side,
+            price: price,
+            quantity: quantity,
+            fee: Value(fee),
+            reason: Value(reason),
+            emotion: Value(emotion),
+            images: Value(encodeImages(images)),
+            updatedAt: DateTime.now(),
+          ),
+        );
+  }
+
   /// 删除交易并清理其截图文件
   Future<void> deleteTrade(int id) async {
     final row = await (db.select(db.trades)..where((t) => t.id.equals(id)))
@@ -131,6 +160,35 @@ class TradeRepository {
           ]))
         .watch();
   }
+
+  // ---- 设置（费率、期初本金等）----
+
+  Future<String?> getSetting(String key) async {
+    final row = await (db.select(db.appSettings)
+          ..where((t) => t.key.equals(key)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
+  Future<void> setSetting(String key, String value) {
+    return db.into(db.appSettings).insertOnConflictUpdate(
+          AppSettingsCompanion.insert(key: key, value: Value(value)),
+        );
+  }
+
+  Future<double> getSettingDouble(String key, double fallback) async {
+    final v = await getSetting(key);
+    final d = double.tryParse(v ?? '');
+    return d ?? fallback;
+  }
+}
+
+/// 设置键
+abstract final class SettingKeys {
+  static const commissionRate = 'fee.commissionRate';
+  static const commissionMin = 'fee.commissionMin';
+  static const stampRate = 'fee.stampRate';
+  static const transferRate = 'fee.transferRate';
 }
 
 class TradeWithInstrument {
