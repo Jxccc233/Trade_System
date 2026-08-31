@@ -5,6 +5,9 @@ import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/breakpoints.dart';
 import '../core/utils/dates.dart';
+import '../core/widgets/image_viewer.dart';
+import '../data/db/tables.dart' show TradeSide;
+import '../data/repositories.dart' show decodeImages;
 import '../data/review_repository.dart';
 import '../domain/position_book.dart' show dateKey;
 
@@ -137,22 +140,48 @@ class _ReviewEditPageState extends ConsumerState<ReviewEditPage> {
                         color: theme.colorScheme.onSurfaceVariant))
               else
                 for (final t in trades)
-                  ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Text(
-                      t.trade.side == 'BUY' ? '买' : '卖',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                          color: t.trade.side == 'BUY'
-                              ? AppColors.up
-                              : AppColors.down),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Text(
+                            t.trade.side == TradeSide.buy ? '买' : '卖',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                                color: t.trade.side == TradeSide.buy
+                                    ? AppColors.up
+                                    : AppColors.down),
+                          ),
+                          title: Text(
+                              '${t.instrument.name} ${t.trade.quantity.toStringAsFixed(t.trade.quantity % 1 == 0 ? 0 : 2)}股 × ${t.trade.price.toStringAsFixed(2)}'),
+                          subtitle: t.trade.reason != null
+                              ? Text(t.trade.reason!,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis)
+                              : null,
+                        ),
+                        // 该笔交易的分时图截图
+                        if (decodeImages(t.trade.images).isNotEmpty)
+                          SizedBox(
+                            height: 64,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: decodeImages(t.trade.images).length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, i) {
+                                final imgs = decodeImages(t.trade.images);
+                                return ScreenshotThumb(
+                                  relPath: imgs[i],
+                                  allRelPaths: imgs,
+                                );
+                              },
+                            ),
+                          ),
+                      ],
                     ),
-                    title: Text(
-                        '${t.instrument.name} ${t.trade.quantity.toStringAsFixed(t.trade.quantity % 1 == 0 ? 0 : 2)}股 × ${t.trade.price.toStringAsFixed(2)}'),
-                    subtitle: t.trade.reason != null
-                        ? Text(t.trade.reason!,
-                            maxLines: 1, overflow: TextOverflow.ellipsis)
-                        : null,
                   ),
               const Divider(height: 24),
 

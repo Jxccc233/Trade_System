@@ -3,6 +3,21 @@ import 'package:drift/drift.dart';
 import '../domain/position_book.dart';
 import 'db/app_database.dart';
 import 'db/tables.dart';
+import 'image_store.dart';
+
+/// images 字段的编解码（JSON 字符串数组）
+String encodeImages(List<String> images) =>
+    '[${images.map((e) => '"$e"').join(',')}]';
+
+List<String> decodeImages(String raw) {
+  if (raw.length <= 2) return const [];
+  return raw
+      .substring(1, raw.length - 1)
+      .split('","')
+      .map((s) => s.replaceAll('"', ''))
+      .where((s) => s.isNotEmpty)
+      .toList();
+}
 
 /// 交易流水 + 标的仓库
 class TradeRepository {
@@ -64,6 +79,7 @@ class TradeRepository {
     double fee = 0,
     String? reason,
     String? emotion,
+    List<String> images = const [],
   }) {
     return db.into(db.trades).insert(TradesCompanion.insert(
           instrumentId: instrumentId,
@@ -74,12 +90,20 @@ class TradeRepository {
           fee: Value(fee),
           reason: Value(reason),
           emotion: Value(emotion),
+          images: Value(encodeImages(images)),
           updatedAt: DateTime.now(),
         ));
   }
 
-  Future<void> deleteTrade(int id) =>
-      (db.delete(db.trades)..where((t) => t.id.equals(id))).go();
+  /// 删除交易并清理其截图文件
+  Future<void> deleteTrade(int id) async {
+    final row = await (db.select(db.trades)..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (row != null) {
+      await ImageStore().deleteAll(decodeImages(row.images));
+    }
+    await (db.delete(db.trades)..where((t) => t.id.equals(id))).go();
+  }
 
   /// 交易流水（带标的信息），按时间倒序
   Stream<List<TradeWithInstrument>> watchTrades() {

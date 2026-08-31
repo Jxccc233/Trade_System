@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/dates.dart';
+import '../core/widgets/image_viewer.dart';
 import '../data/db/tables.dart';
+import '../data/image_store.dart';
 import '../data/repositories.dart';
 import '../domain/position_book.dart' show dateKey;
 import 'trade_entry_page.dart';
@@ -113,11 +115,18 @@ class _TradeTile extends ConsumerWidget {
     final i = item.instrument;
     final isBuy = t.side == TradeSide.buy;
     final theme = Theme.of(context);
+    final images = decodeImages(t.images);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
+        onTap: images.isEmpty
+            ? null
+            : () => showImageViewer(
+                  context,
+                  [for (final r in images) ImagePathResolver.resolve(r)],
+                ),
         onLongPress: () => _confirmDelete(context, ref, t.id, i.name),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -169,6 +178,17 @@ class _TradeTile extends ConsumerWidget {
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                             )),
+                        if (images.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.image_outlined,
+                              size: 14,
+                              color: theme.colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 2),
+                          Text('${images.length}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              )),
+                        ],
                         if (t.reason != null && t.reason!.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Expanded(

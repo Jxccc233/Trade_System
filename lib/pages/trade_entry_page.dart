@@ -5,8 +5,10 @@ import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/breakpoints.dart';
 import '../core/utils/dates.dart';
+import '../core/widgets/image_viewer.dart';
 import '../data/db/app_database.dart';
 import '../data/db/tables.dart';
+import '../data/image_store.dart';
 
 /// 预置情绪标签（M2 支持自定义）
 const kEmotions = ['计划内', '临时起意', '冲动', 'FOMO', '止损', '止盈'];
@@ -44,6 +46,7 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
   DateTime _tradedAt = DateTime.now();
   String? _emotion;
   bool _saving = false;
+  final List<String> _images = [];
 
   @override
   void dispose() {
@@ -119,6 +122,7 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
             ? null
             : _reasonController.text.trim(),
         emotion: _emotion,
+        images: _images,
       );
       if (mounted) Navigator.of(context).pop(true);
     } finally {
@@ -347,6 +351,60 @@ class _TradeEntryPageState extends ConsumerState<TradeEntryPage> {
                 ),
                 maxLines: 3,
                 maxLength: 200,
+              ),
+              const SizedBox(height: 12),
+
+              // 分时图/K线截图（同花顺截图后在此上传）
+              Text('截图（分时图 / K线）', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final img in _images)
+                    Stack(
+                      children: [
+                        ScreenshotThumb(relPath: img, allRelPaths: _images),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _images.remove(img)),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close,
+                                  size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () async {
+                      final saved = await ImageStore().pickAndSave();
+                      if (saved.isNotEmpty) {
+                        setState(() => _images.addAll(saved));
+                      }
+                    },
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
+                      child: Icon(Icons.add_photo_alternate_outlined,
+                          color: Theme.of(context).colorScheme.outline),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

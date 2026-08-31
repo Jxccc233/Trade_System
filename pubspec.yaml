@@ -18,6 +18,7 @@ dependencies:
   flutter_riverpod: ^2.5.1
   fl_chart: ^0.68.0
   intl: ^0.19.0
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -39,6 +40,9 @@ dependency_overrides:
       url: "https://gitee.com/openharmony-sig/flutter_packages.git"
       path: "packages/path_provider/path_provider_ohos"
       ref: br_path_provider-v2.1.4_ohos
+  # image_picker_ohos 从 gitee 拉取极慢，改为本地副本（来源：br_image_picker-v1.1.2_ohos 分支）
+  image_picker_ohos:
+    path: third_party/image_picker_ohos
 
 flutter:
   uses-material-design: true
