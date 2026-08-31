@@ -100,4 +100,18 @@ class BackupService {
       f.deleteSync();
     }
   }
+
+  /// 自动每日备份（§5.6 v0.3）：今日尚无自动备份时整库留档一份，保留最近 10 份。
+  /// 在应用启动、数据库文件已落盘且无连接打开时调用。
+  Future<void> autoDailyBackupIfDue() async {
+    final dir = await _backupDir();
+    final today = DateFormat('yyyyMMdd').format(DateTime.now());
+    final marker = File(p.join(dir.path, 'auto-$today.sqlite'));
+    if (marker.existsSync()) return;
+    final root = await getApplicationDocumentsDirectory();
+    final dbFile = File(p.join(root.path, 'fupan.sqlite'));
+    if (!dbFile.existsSync()) return; // 首次启动无库
+    dbFile.copySync(marker.path);
+    await pruneBackups(keep: 10);
+  }
 }

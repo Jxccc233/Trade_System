@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
+import 'data/backup.dart';
 import 'data/db/app_database.dart';
 import 'data/db/seed.dart';
 import 'data/image_store.dart';
@@ -14,6 +15,8 @@ Future<void> main() async {
   final boot = AppDatabase();
   await seedDemoDataIfEmpty(boot);
   await boot.close();
+  // 自动每日备份（§5.6）：今日首次启动整库留档
+  await BackupService(boot).autoDailyBackupIfDue();
 
   runApp(const ProviderScope(child: FupanApp()));
 }
