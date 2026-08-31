@@ -4,6 +4,7 @@ import '../../data/backup.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories.dart';
 import '../../data/review_repository.dart';
+import '../../domain/daily_pnl.dart';
 import '../../domain/position_book.dart';
 
 final backupServiceProvider =
@@ -75,4 +76,36 @@ final positionBookProvider = Provider<PositionBook?>((ref) {
 final instrumentByIdProvider = Provider<Map<int, Instrument>>((ref) {
   final list = ref.watch(instrumentsProvider).valueOrNull ?? const [];
   return {for (final i in list) i.id: i};
+});
+
+/// 全部价格历史（批量填价/当日总盈亏用）
+final priceHistoryProvider =
+    StreamProvider<Map<int, List<({String date, double price})>>>(
+        (ref) => ref.watch(priceRepositoryProvider).watchPriceHistory());
+
+const _dailyPnlComputer = DailyPnlComputer();
+
+/// 今日当日总盈亏（§5.11 现金中性口径）
+final dailyPnlProvider = Provider<DailyPnlResult?>((ref) {
+  final trades = ref.watch(tradesProvider).valueOrNull;
+  if (trades == null) return null;
+  final prices = ref.watch(priceHistoryProvider).valueOrNull ?? const {};
+  try {
+    return _dailyPnlComputer.compute(
+      trades: trades
+          .map((t) => TradeRecord(
+                instrumentId: t.instrument.id,
+                tradedAt: t.trade.tradedAt,
+                side: t.trade.side,
+                price: t.trade.price,
+                quantity: t.trade.quantity,
+                fee: t.trade.fee,
+              ))
+          .toList(),
+      prices: prices,
+      day: DateTime.now(),
+    );
+  } catch (_) {
+    return null;
+  }
 });

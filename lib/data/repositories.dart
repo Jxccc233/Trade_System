@@ -229,4 +229,31 @@ class PriceRepository {
       return map;
     });
   }
+
+  /// 全部价格历史：instrumentId → 按日期升序 [(date, price)]
+  Stream<Map<int, List<({String date, double price})>>> watchPriceHistory() {
+    return (db.select(db.priceEntries)
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.date),
+            (t) => OrderingTerm.asc(t.instrumentId),
+          ]))
+        .watch()
+        .map((rows) {
+      final map = <int, List<({String date, double price})>>{};
+      for (final r in rows) {
+        map.putIfAbsent(r.instrumentId, () => []).add((date: r.date, price: r.price));
+      }
+      return map;
+    });
+  }
+
+  /// 某标的最近一次填价
+  Future<double?> lastPriceOf(int instrumentId) async {
+    final rows = await (db.select(db.priceEntries)
+          ..where((t) => t.instrumentId.equals(instrumentId))
+          ..orderBy([(t) => OrderingTerm.desc(t.date)])
+          ..limit(1))
+        .get();
+    return rows.isEmpty ? null : rows.first.price;
+  }
 }

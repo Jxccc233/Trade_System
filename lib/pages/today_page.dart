@@ -3,36 +3,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/di/providers.dart';
 import '../core/theme/app_colors.dart';
-import '../core/widgets/adaptive_card_grid.dart';
 import '../core/utils/format.dart';
 import '../data/db/tables.dart';
 import '../data/repositories.dart';
 import '../domain/position_book.dart' show dateKey, Holding;
-import '../core/utils/dates.dart';
+import 'batch_price_page.dart';
+import 'review_edit_page.dart';
 import 'settings_page.dart';
 import 'trade_entry_page.dart';
 
-/// 今日仪表盘：当日已实现盈亏、持仓概览、今日交易
+/// 今日仪表盘：当日总盈亏头条 + 盘后三件事 + 今日交易（§5.11）
 class TodayPage extends ConsumerWidget {
   const TodayPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final daily = ref.watch(dailyPnlProvider);
     final book = ref.watch(positionBookProvider);
-    final trades = ref.watch(tradesProvider).valueOrNull ?? const [];
+    final trades = ref.watch(tradesProvider).valueOrNull ?? [];
 
+    final today = DateTime.now();
     final todayTrades = trades
-        .where((t) => dateKey(t.trade.tradedAt) == dateKey(DateTime.now()))
+        .where((t) => dateKey(t.trade.tradedAt) == dateKey(today))
         .toList();
-    final todayPnl = book?.realizedPnlByDay[dateKey(DateTime.now())];
     final holdings = book?.holdings.values.toList() ?? const <Holding>[];
     final totalMarketValue = holdings.fold<double>(
         0, (s, h) => s + (h.lastPrice == null ? 0 : h.quantity * h.lastPrice!));
-    final totalFloat = holdings.fold<double>(
-        0, (s, h) => s + (h.floatingPnl ?? 0));
-    final pricedCount =
-        holdings.where((h) => h.lastPrice != null).length;
+
+    // 盘后三件事状态
+    final history = ref.watch(priceHistoryProvider).valueOrNull ?? const {};
+    final priceDone = holdings.isEmpty
+        ? true
+        : holdings.every((h) => (history[h.instrumentId] ?? const [])
+            .any((e) => e.date == dateKey(today)));
+    final reviewDone =
+        ref.watch(reviewsProvider).valueOrNull?[dateKey(today)] != null;
+    final seenDone = priceDone && (daily?.isApproximate == false);
+    final showRoutine = today.hour >= 15 || priceDone || reviewDone;
 
     return Scaffold(
       appBar: AppBar(
@@ -53,89 +61,146 @@ class TodayPage extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('记一笔'),
       ),
-      body: AdaptiveCardGrid(
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-            Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    Text('今日已实现盈亏',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
-                    const SizedBox(height: 8),
-                    Text(
-                      todayPnl == null ? '—' : signedMoney(todayPnl),
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color:
-                            todayPnl == null ? AppColors.flat : AppColors.ofPnl(todayPnl),
-                      ),
+          // 头条：当日总盈亏
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text('当日总盈亏',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 8),
+                  Text(
+                    daily == null
+                        ? '—'
+                        : '${daily.isApproximate ? '约 ' : ''}${signedMoney(daily.totalPnl)}',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: daily == null || daily.totalPnl == 0
+                          ? AppColors.flat
+                          : AppColors.ofPnl(daily.totalPnl),
                     ),
+                  ),
+                  if (daily != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      holdings.isEmpty
-                          ? '暂无持仓'
-                          : '持仓 ${holdings.length} 只 · 市值 ${money(totalMarketValue)}'
-                              '${pricedCount < holdings.length ? '（$pricedCount/${holdings.length} 已填价）' : ''}',
+                      '已实现 ${signedMoney(daily.realized)} · 持仓变动 ${signedMoney(daily.holdingChange)}',
                       style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant),
                     ),
-                    if (holdings.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '浮动盈亏 ${signedMoney(totalFloat)}',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: AppColors.ofPnl(totalFloat)),
-                      ),
-                    ],
                   ],
-                ),
+                  const SizedBox(height: 4),
+                  Text(
+                    holdings.isEmpty
+                        ? '暂无持仓'
+                        : '持仓 ${holdings.length} 只 · 市值 ${money(totalMarketValue)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
               ),
             ),
-            if (todayTrades.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text('今日交易（${todayTrades.length} 笔）',
-                    style: theme.textTheme.titleSmall),
-              ),
-              for (final t in todayTrades) _TodayTradeTile(item: t),
-            ] else
-              Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(Icons.coffee_outlined,
-                          color: theme.colorScheme.outline),
-                      const SizedBox(width: 12),
-                      Text('今天还没有交易',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant)),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(height: 4),
+          ),
+
+          // 盘后三件事（收盘后出现，§5.11）
+          if (showRoutine) ...[
+            _RoutineCard(
+              priceDone: priceDone,
+              seenDone: seenDone,
+              reviewDone: reviewDone,
+              onPrice: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => const BatchPricePage())),
+              onReview: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => ReviewEditPage(date: DateTime.now()))),
+            ),
+          ],
+
+          if (todayTrades.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: Text('今日交易（${todayTrades.length} 笔）',
+                  style: theme.textTheme.titleSmall),
+            ),
+            for (final t in todayTrades) _TodayTradeTile(item: t),
+          ] else
             Card(
+              margin: const EdgeInsets.only(bottom: 12),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.event_note_outlined,
-                        color: theme.colorScheme.primary),
+                    Icon(Icons.coffee_outlined,
+                        color: theme.colorScheme.outline),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: Text('收盘后记得写复盘（M2 上线日历与复盘表单）',
-                          style: theme.textTheme.bodySmall),
-                    ),
+                    Text('今天还没有交易',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
             ),
-          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RoutineCard extends StatelessWidget {
+  const _RoutineCard({
+    required this.priceDone,
+    required this.seenDone,
+    required this.reviewDone,
+    required this.onPrice,
+    required this.onReview,
+  });
+
+  final bool priceDone;
+  final bool seenDone;
+  final bool reviewDone;
+  final VoidCallback onPrice;
+  final VoidCallback onReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget item(IconData icon, String title, bool done, VoidCallback onTap,
+        [String? doneText]) {
+      return ListTile(
+        dense: true,
+        leading: Icon(
+          done ? Icons.check_circle : icon,
+          color: done ? AppColors.down : theme.colorScheme.primary,
         ),
+        title: Text(title),
+        trailing: done
+            ? Text(doneText ?? '已完成',
+                style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant))
+            : const Icon(Icons.chevron_right),
+        onTap: done ? null : onTap,
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Text('盘后三件事', style: theme.textTheme.titleSmall),
+          ),
+          item(Icons.edit_note_outlined, '① 填价：批量更新持仓现价', priceDone,
+              onPrice, '已填'),
+          item(Icons.visibility_outlined, '② 看账：当日总盈亏', seenDone, onPrice),
+          item(Icons.event_note_outlined, '③ 复盘：写下今天的心得', reviewDone,
+              onReview),
+        ],
+      ),
     );
   }
 }
@@ -150,6 +215,8 @@ class _TodayTradeTile extends StatelessWidget {
     final t = item.trade;
     final isBuy = t.side == TradeSide.buy;
     final theme = Theme.of(context);
+    final hh = t.tradedAt.hour.toString().padLeft(2, '0');
+    final mm = t.tradedAt.minute.toString().padLeft(2, '0');
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -160,13 +227,12 @@ class _TodayTradeTile extends StatelessWidget {
         title: Text(item.instrument.name,
             maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-            '${hhmm(t.tradedAt)} · ${t.quantity.toStringAsFixed(t.quantity % 1 == 0 ? 0 : 2)}股 × ${t.price.toStringAsFixed(2)}',
+            '$hh:$mm · ${t.quantity.toStringAsFixed(t.quantity % 1 == 0 ? 0 : 2)}股 × ${t.price.toStringAsFixed(2)}',
             style: theme.textTheme.bodySmall),
         trailing: t.emotion == null
             ? null
             : Chip(
-                label: Text(t.emotion!,
-                    style: theme.textTheme.labelSmall),
+                label: Text(t.emotion!, style: theme.textTheme.labelSmall),
                 visualDensity: VisualDensity.compact,
               ),
       ),
